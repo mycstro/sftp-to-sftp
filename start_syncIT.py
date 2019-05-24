@@ -165,21 +165,23 @@ def main():
     logging.info("This script is intended to assist in the operation of copying file from one sftp to another")
     gi = gatherIT()
     gi.getSettings()
-    if IsLocal:
-        try:
-            gi.LocalSync()
-            logging.info("Done")
-        except KeyboardInterrupt:
-            logging.info("Sync stopped")
-            exit(0)
-    else:
-        try:
-            gi.RemoteSync()
-            logging.info("Done")
-        except KeyboardInterrupt:
-            logging.info("Sync stopped")
-            exit(0)
-
+    try:
+        if IsLocal:
+            try:
+                gi.LocalSync()
+                logging.info("Done")
+            except KeyboardInterrupt:
+                logging.info("Sync stopped")
+                exit(0)
+        else:
+            try:
+                gi.RemoteSync()
+                logging.info("Done")
+            except KeyboardInterrupt:
+                logging.info("Sync stopped")
+                exit(0)
+    except NameError:
+        logging.warning('No settings in settings.xlsx')
 
 if __name__ == '__main__':
     main()
