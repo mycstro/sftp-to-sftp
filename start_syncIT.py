@@ -1,10 +1,13 @@
-import shutil
-import os
 import datetime
-import pysftp
+import logging
+import os
+import shutil
 import tempfile
 
+import pysftp
 from pandas import DataFrame, ExcelFile
+
+logging.basicConfig(filename='sftp-to-sftp.log', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
 
 class syncIT:
@@ -17,51 +20,63 @@ class syncIT:
             remote = os.path.join(syncSourcePath, syncFileNames)
 
             with pysftp.Connection(**syncSourceInfo) as gsftp:
-                print("connected")
+                logging.info("connected")
                 with gsftp.cd(syncSourcePath):  # temporarily chdir
                     if TimestampIt:
-                        renamed_filename = "{}.{}".format(self.dt, syncFileNames)
-                        gsftp.get(remote, tempdir, preserve_mtime=True)  # get a remote file
-                        moveto = os.path.join(localDestination, renamed_filename)
-                        shutil.copyfile(tempdir, moveto, follow_symlinks=False)
-                        print("File {} copied from: {} to: {}".format(renamed_filename, syncSourcePath,
-                                                                      localDestination))
+                        try:
+                            renamed_filename = "{}.{}".format(self.dt, syncFileNames)
+                            gsftp.get(remote, tempdir, preserve_mtime=True)  # get a remote file
+                            moveto = os.path.join(localDestination, renamed_filename)
+                            shutil.copyfile(tempdir, moveto, follow_symlinks=False)
+                            logging.info("File {} copied from: {} to: {}".format(renamed_filename, syncSourcePath,
+                                                                                 localDestination))
+                        except Exception as e:
+                            logging.warning(e)
                     else:
                         try:
                             gsftp.get(remote, tempdir, preserve_mtime=True)  # get a remote file
                             moveto = os.path.join(localDestination, syncFileNames)
                             shutil.copyfile(tempdir, moveto, follow_symlinks=False)
-                            print("File {} copied from: {} to: {}".format(syncFileNames, syncSourcePath,
-                                                                          localDestination))
+                            logging.info("File {} copied from: {} to: {}".format(syncFileNames, syncSourcePath,
+                                                                                 localDestination))
                         except Exception as e:
-                            print(e)
+                            logging.warning(e)
 
     def get_dual_sync(self, syncFileNames, syncSourcePath, syncSourceInfo, syncDestinationPath, syncDestinationInfo):
         with tempfile.TemporaryDirectory() as SyncLocalTempPath:
             tempdir = os.path.join(SyncLocalTempPath, syncFileNames)
 
             with pysftp.Connection(**syncSourceInfo) as gsftp:
-                print("connected")
+                logging.info("connected")
                 with gsftp.cd(syncSourcePath):  # temporarily chdir
-                    copyfrom = os.path.join(syncSourcePath, syncFileNames)
-                    gsftp.get(copyfrom, tempdir, preserve_mtime=True)  # get a remote file
-                    print("File {} copied from: {} to: {}".format(syncFileNames, syncSourcePath,
-                                                                  SyncLocalTempPath))
+                    try:
+                        copyfrom = os.path.join(syncSourcePath, syncFileNames)
+                        gsftp.get(copyfrom, tempdir, preserve_mtime=True)  # get a remote file
+                        logging.info("File {} copied from: {} to: {}".format(syncFileNames, syncSourcePath,
+                                                                             SyncLocalTempPath))
+                    except Exception as e:
+                        logging.warning(e)
 
             with pysftp.Connection(**syncDestinationInfo) as gsftp:
-                print("connected")
+                logging.info("connected")
                 with gsftp.cd(syncDestinationPath):  # temporarily chdir
                     if TimestampIt:
-                        renamed_filename = "{}.{}".format(self.dt, syncFileNames)
-                        copyto = os.path.join(syncDestinationPath, renamed_filename)
-                        gsftp.put(tempdir, copyto, preserve_mtime=True)  # get a remote file
-                        print("File {} copied from: {} to: {}".format(renamed_filename, SyncLocalTempPath,
-                                                                      syncDestinationPath))
+                        try:
+                            renamed_filename = "{}.{}".format(self.dt, syncFileNames)
+                            copyto = os.path.join(syncDestinationPath, renamed_filename)
+                            gsftp.put(tempdir, copyto, preserve_mtime=True)  # get a remote file
+                            logging.info("File {} copied from: {} to: {}".format(renamed_filename, SyncLocalTempPath,
+                                                                                 syncDestinationPath))
+                        except Exception as e:
+                            logging.warning(e)
                     else:
-                        copyto = os.path.join(syncDestinationPath, syncFileNames)
-                        gsftp.put(tempdir, copyto, preserve_mtime=True)  # get a remote file
-                        print("File {} copied from: {} to: {}".format(syncFileNames, SyncLocalTempPath,
-                                                                      syncDestinationPath))
+                        try:
+                            copyto = os.path.join(syncDestinationPath, syncFileNames)
+                            gsftp.put(tempdir, copyto, preserve_mtime=True)  # get a remote file
+                            logging.info("File {} copied from: {} to: {}".format(syncFileNames, SyncLocalTempPath,
+                                                                                 syncDestinationPath))
+                        except Exception as e:
+                            logging.warning(e)
 
 
 class gatherIT:
@@ -101,7 +116,7 @@ class gatherIT:
             try:
                 si.get_single_sync(SyncFileNames, SyncSourcePath, SyncSourceInfo, LocalDestination)
             except FileNotFoundError as e:
-                print(e)
+                logging.warning(e)
                 continue
 
     def RemoteSync(self):
@@ -142,27 +157,27 @@ class gatherIT:
                 si.get_dual_sync(SyncFileNames, SyncSourcePath, SyncSourceInfo, SyncDestinationPath,
                                  SyncDestinationInfo)
             except FileNotFoundError as e:
-                print(e)
+                logging.warning(e)
                 continue
 
 
 def main():
-    print("This script is intended to assist in the operation of copying file from one sftp to another")
+    logging.info("This script is intended to assist in the operation of copying file from one sftp to another")
     gi = gatherIT()
     gi.getSettings()
     if IsLocal:
         try:
             gi.LocalSync()
-            print("Done")
+            logging.info("Done")
         except KeyboardInterrupt:
-            print("Sync stopped")
+            logging.info("Sync stopped")
             exit(0)
     else:
         try:
             gi.RemoteSync()
-            print("Done")
+            logging.info("Done")
         except KeyboardInterrupt:
-            print("Sync stopped")
+            logging.info("Sync stopped")
             exit(0)
 
 
